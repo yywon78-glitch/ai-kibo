@@ -123,6 +123,18 @@ body{
 .ctrl-btns button:active{background:rgba(212,160,86,0.4)}
 .ctrl-btns button.play{background:rgba(212,160,86,0.3)}
 .ctrl-btns button:disabled{opacity:.35}
+.ctrl-speed{display:flex;align-items:center;gap:6px;justify-content:center;flex-wrap:wrap}
+.ctrl-speed span{font-size:12px;color:#d4a056;white-space:nowrap}
+.ctrl-speed button{
+  padding:6px 12px;border:none;border-radius:8px;
+  background:rgba(212,160,86,0.16);color:#f5e6c8;font-size:13px;cursor:pointer;
+}
+.ctrl-speed button.active{background:rgba(212,160,86,0.5);font-weight:700}
+.ctrl-speed-input{
+  width:52px;padding:5px 6px;border:1px solid rgba(212,160,86,0.4);border-radius:8px;
+  background:rgba(0,0,0,0.3);color:#f5e6c8;font-size:13px;text-align:center;
+}
+.ctrl-speed-unit{font-size:12px;color:rgba(245,230,200,0.6)}
 
 .empty-msg{padding:40px 20px;text-align:center;color:rgba(245,230,200,0.5);font-size:14px}
 .loading{padding:30px;text-align:center;color:#d4a056}
@@ -164,10 +176,19 @@ body{
       <button onclick="gotoMove(0)" title="처음">⏮</button>
       <button onclick="stepMove(-10)" title="10수 뒤로">⏪</button>
       <button onclick="stepMove(-1)" title="이전">◀</button>
-      <button class="play" id="play-btn" onclick="togglePlay()" title="자동재생">▶</button>
+      <button class="play" id="play-btn" onclick="togglePlay()" title="자동재생">▶▶</button>
       <button onclick="stepMove(1)" title="다음">▶</button>
       <button onclick="stepMove(10)" title="10수 앞으로">⏩</button>
       <button onclick="gotoMove(totalMoves)" title="끝">⏭</button>
+    </div>
+    <div class="ctrl-speed">
+      <span>간격</span>
+      <button id="sp1" onclick="setSpeed(1)" class="active">1초</button>
+      <button id="sp2" onclick="setSpeed(2)">2초</button>
+      <button id="sp3" onclick="setSpeed(3)">3초</button>
+      <button id="sp5" onclick="setSpeed(5)">5초</button>
+      <input class="ctrl-speed-input" id="speed-input" type="number" min="1" max="60" value="1" onchange="setSpeedCustom(this.value)">
+      <span class="ctrl-speed-unit">초</span>
     </div>
   </div>
 </div>
@@ -530,7 +551,21 @@ function gotoMove(n){
 function stepMove(d){ stopPlay(); gotoMove(curMove+d); }
 
 /* 자동재생 */
-var playTimer=null;
+var playTimer=null, playInterval=1000;
+function setSpeed(sec){
+  playInterval=sec*1000;
+  document.getElementById('speed-input').value=sec;
+  ['sp1','sp2','sp3','sp5'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('active'); });
+  var map={1:'sp1',2:'sp2',3:'sp3',5:'sp5'};
+  if(map[sec]){ var el=document.getElementById(map[sec]); if(el) el.classList.add('active'); }
+  if(playTimer){ clearInterval(playTimer); startPlay(); }
+}
+function setSpeedCustom(val){
+  var sec=Math.max(1,Math.min(60,parseInt(val)||1));
+  playInterval=sec*1000;
+  ['sp1','sp2','sp3','sp5'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('active'); });
+  if(playTimer){ clearInterval(playTimer); startPlay(); }
+}
 function togglePlay(){ if(playTimer) stopPlay(); else startPlay(); }
 function startPlay(){
   if(curMove>=totalMoves) gotoMove(0);
@@ -538,10 +573,10 @@ function startPlay(){
   playTimer=setInterval(function(){
     if(curMove>=totalMoves){ stopPlay(); return; }
     gotoMove(curMove+1);
-  },700);
+  },playInterval);
 }
 function stopPlay(){ if(playTimer){ clearInterval(playTimer); playTimer=null; }
-  var pb=document.getElementById('play-btn'); if(pb) pb.textContent='▶'; }
+  var pb=document.getElementById('play-btn'); if(pb) pb.textContent='▶▶'; }
 
 function relayoutBoard(){
   if(document.getElementById('screen-board').classList.contains('active')){ resizeCanvas(); drawBoard(); }

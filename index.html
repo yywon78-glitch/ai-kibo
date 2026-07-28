@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a252f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="스마트기보">
+<link rel="manifest" href="manifest.json">
+<title>스마트 기보 v1.0</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  background:linear-gradient(135deg,#2c3e50 0%,#1a252f 100%);
+  color:#f5e6c8;
+  display:flex;flex-direction:column;height:100vh;height:100dvh;
+}
+/* ===== 공통 헤더 ===== */
+.app-header{
+  flex-shrink:0;display:flex;align-items:center;gap:10px;
+  padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top));
+  background:rgba(0,0,0,0.35);border-bottom:1px solid rgba(245,230,200,0.15);
+}
+.app-header .back-btn{
+  width:38px;height:38px;flex-shrink:0;border:none;border-radius:10px;
+  background:rgba(212,160,86,0.18);color:#f5e6c8;font-size:20px;cursor:pointer;
+  display:none;align-items:center;justify-content:center;
+}
+.app-header .back-btn.show{display:flex}
+.app-header .h-title{font-size:17px;font-weight:700;color:#f5e6c8;letter-spacing:.5px;flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app-header .h-sub{font-size:12px;color:#d4a056;flex-shrink:0}
+
+/* ===== 화면 전환 ===== */
+.screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:none}
+.screen.active{display:block}
+#screen-board.active{display:flex;flex-direction:column;overflow:hidden}
+
+/* ===== 기전 목록 그리드 ===== */
+.tour-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:12px;padding:14px;
+}
+.tour-card{
+  background:linear-gradient(160deg,rgba(212,160,86,0.14),rgba(0,0,0,0.25));
+  border:1px solid rgba(245,230,200,0.14);border-radius:14px;
+  padding:16px 14px;cursor:pointer;transition:transform .12s,border-color .12s;
+  display:flex;flex-direction:column;gap:8px;min-height:96px;justify-content:space-between;
+}
+.tour-card:active{transform:scale(.96);border-color:#d4a056}
+.tour-card .tc-name{font-size:16px;font-weight:700;color:#f5e6c8;line-height:1.3}
+.tour-card .tc-en{font-size:11px;color:rgba(245,230,200,0.45)}
+.tour-card .tc-count{font-size:12px;color:#d4a056;font-weight:600}
+.tour-card.classic{background:linear-gradient(160deg,rgba(120,90,200,0.20),rgba(0,0,0,0.25));
+  border-color:rgba(160,140,230,0.25)}
+.tour-card.classic .tc-count{color:#b9a6f0}
+.tc-dl{opacity:.55;font-size:11px}
+.loading-note{padding:2.4em 1.2em;text-align:center;color:rgba(245,230,200,0.6);
+  font-size:14px;line-height:1.7}
+.loading-note.err{color:#e6a3a3}
+.loading-note small{opacity:.5}
+
+/* ===== 대국 목록 (썸네일) ===== */
+.game-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:12px;padding:14px;
+}
+.game-card{
+  background:rgba(0,0,0,0.25);border:1px solid rgba(245,230,200,0.12);
+  border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .12s,border-color .12s;
+  display:flex;flex-direction:column;
+}
+.game-card:active{transform:scale(.96);border-color:#d4a056}
+.gc-thumb{width:100%;aspect-ratio:1/1;background:#e8c47a;display:block}
+.gc-info{padding:9px 10px;display:flex;flex-direction:column;gap:4px}
+.gc-players{font-size:13px;line-height:1.4}
+.gc-players .pb{color:#fff;font-weight:700}
+.gc-players .pw{color:#cfd8e0}
+.gc-vs{color:#d4a056;font-size:11px;margin:0 4px}
+.gc-meta{font-size:10.5px;color:rgba(245,230,200,0.55);display:flex;justify-content:space-between;gap:6px}
+.gc-result{font-size:11px;font-weight:700;color:#d4a056}
+.gc-num{font-size:10px;color:rgba(245,230,200,0.4)}
+
+/* ===== 대국 진행 (보드) ===== */
+.board-info{
+  flex-shrink:0;padding:10px 14px;background:rgba(0,0,0,0.25);
+  border-bottom:1px solid rgba(245,230,200,0.1);
+}
+.bi-players{display:flex;align-items:center;justify-content:center;gap:10px;font-size:14px;flex-wrap:wrap}
+.bi-p{display:flex;align-items:center;gap:6px}
+.bi-stone{width:14px;height:14px;border-radius:50%}
+.bi-stone.b{background:radial-gradient(ellipse at 35% 25%,#4a4a4a,#000)}
+.bi-stone.w{background:radial-gradient(ellipse at 35% 25%,#fff,#ccc)}
+.bi-name{font-weight:700}.bi-rank{color:#d4a056;font-size:12px}
+.bi-event{text-align:center;font-size:11px;color:rgba(245,230,200,0.55);margin-top:3px}
+.board-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:8px;min-height:0}
+#board-canvas{background:#e8c47a;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.5);
+  max-width:100%;max-height:100%}
+.comment-bar{flex-shrink:0;max-height:64px;overflow-y:auto;padding:6px 14px;
+  font-size:12px;color:#e8d9b8;background:rgba(0,0,0,0.25);line-height:1.45;display:none}
+.comment-bar.show{display:block}
+
+/* ===== 컨트롤 ===== */
+.controls{
+  flex-shrink:0;background:rgba(0,0,0,0.4);
+  padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom));
+  border-top:1px solid rgba(245,230,200,0.12);
+  display:flex;flex-direction:column;gap:8px;
+}
+.ctrl-slider{display:flex;align-items:center;gap:10px}
+.ctrl-slider input[type=range]{flex:1;accent-color:#d4a056;height:24px}
+.ctrl-moveno{font-size:12px;color:#d4a056;min-width:74px;text-align:right;font-variant-numeric:tabular-nums}
+.ctrl-btns{display:flex;gap:6px}
+.ctrl-btns button{
+  flex:1;padding:11px 0;border:none;border-radius:10px;
+  background:rgba(212,160,86,0.16);color:#f5e6c8;font-size:16px;cursor:pointer;
+  transition:background .1s;
+}
+.ctrl-btns button:active{background:rgba(212,160,86,0.4)}
+.ctrl-btns button.play{background:rgba(212,160,86,0.3)}
+.ctrl-btns button:disabled{opacity:.35}
+
+.empty-msg{padding:40px 20px;text-align:center;color:rgba(245,230,200,0.5);font-size:14px}
+.loading{padding:30px;text-align:center;color:#d4a056}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="app-header">
+  <button class="back-btn" id="back-btn" onclick="goBack()">◀</button>
+  <div class="h-title" id="h-title">스마트 기보</div>
+  <div class="h-sub" id="h-sub"></div>
+</div>
+
+<!-- 화면 1: 기전 목록 -->
+<div class="screen active" id="screen-tournaments">
+  <div class="tour-grid" id="tour-grid"></div>
+</div>
+
+<!-- 화면 2: 대국 목록 (썸네일) -->
+<div class="screen" id="screen-games">
+  <div class="game-grid" id="game-grid"></div>
+</div>
+
+<!-- 화면 3: 대국 진행 -->
+<div class="screen" id="screen-board">
+  <div class="board-info">
+    <div class="bi-players" id="bi-players"></div>
+    <div class="bi-event" id="bi-event"></div>
+  </div>
+  <div class="board-wrap"><canvas id="board-canvas"></canvas></div>
+  <div class="comment-bar" id="comment-bar"></div>
+  <div class="controls">
+    <div class="ctrl-slider">
+      <input type="range" id="move-slider" min="0" max="0" value="0">
+      <span class="ctrl-moveno" id="move-no">0 / 0</span>
+    </div>
+    <div class="ctrl-btns">
+      <button onclick="gotoMove(0)" title="처음">⏮</button>
+      <button onclick="stepMove(-10)" title="10수 뒤로">⏪</button>
+      <button onclick="stepMove(-1)" title="이전">◀</button>
+      <button class="play" id="play-btn" onclick="togglePlay()" title="자동재생">▶</button>
+      <button onclick="stepMove(1)" title="다음">▶</button>
+      <button onclick="stepMove(10)" title="10수 앞으로">⏩</button>
+      <button onclick="gotoMove(totalMoves)" title="끝">⏭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= 데이터 (런타임 지연 로딩) ================= */
+var KIBO_DB={};          // 기전별 기보 캐시 — 클릭 시 data/<key>.json 을 fetch 하여 채운다
+var TOUR_INDEX=[];       // 기전 목록 메타 [{key,name,count,classic}] — index.json 에서 로드
+var FOLDER_NAMES_KO={};  // key → 한글 기전명 — index.json 에서 파생
+
+/* ================= 기전 분류 ================= */
+var CLASSIC_KEYS = ['AlphaGo','Shusaku','Go_Seigen','Dosaku','Cho_Chikun','ancient'];
+
+/* ================= SGF 파서 (메인라인) ================= */
+function parseSGF(s){
+  var pos={i:0};
+  function skipWs(){ while(pos.i<s.length && /\s/.test(s[pos.i])) pos.i++; }
+  function readValue(){
+    pos.i++; var v='';
+    while(pos.i<s.length){
+      var c=s[pos.i];
+      if(c==='\\'){ v+=s[pos.i+1]||''; pos.i+=2; continue; }
+      if(c===']'){ pos.i++; break; }
+      v+=c; pos.i++;
+    }
+    return v;
+  }
+  function parseNode(){
+    var node={};
+    while(pos.i<s.length){
+      skipWs();
+      var c=s[pos.i];
+      if(!(c>='A'&&c<='Z')) break;
+      var id='';
+      while(pos.i<s.length && /[A-Za-z]/.test(s[pos.i])){ if(s[pos.i]>='A'&&s[pos.i]<='Z') id+=s[pos.i]; pos.i++; }
+      var vals=[]; skipWs();
+      while(pos.i<s.length && s[pos.i]==='['){ vals.push(readValue()); skipWs(); }
+      node[id]=vals;
+    }
+    return node;
+  }
+  function skipTree(){
+    var d=0;
+    while(pos.i<s.length){
+      var c=s[pos.i];
+      if(c==='['){ readValue(); continue; }
+      if(c==='('){ d++; pos.i++; }
+      else if(c===')'){ d--; pos.i++; if(d<=0) break; }
+      else pos.i++;
+    }
+  }
+  function parseTree(){
+    pos.i++; // '('
+    var nodes=[];
+    while(pos.i<s.length){
+      skipWs();
+      var c=s[pos.i];
+      if(c===';'){ pos.i++; nodes.push(parseNode()); }
+      else if(c==='('){ nodes=nodes.concat(parseTree()); // 첫 분기 = 메인라인
+        while(pos.i<s.length){ skipWs(); if(s[pos.i]==='(') skipTree(); else break; }
+        break;
+      }
+      else if(c===')'){ pos.i++; break; }
+      else pos.i++;
+    }
+    return nodes;
+  }
+  skipWs();
+  if(s[pos.i]!=='(') return {info:{},size:19,moves:[],setup:{b:[],w:[]}};
+  var nodes=parseTree();
+  var root=nodes[0]||{};
+  function g(k){ return root[k]&&root[k][0]!=null?root[k][0]:''; }
+  var size=parseInt(g('SZ'))||19;
+  var setup={b:[],w:[]};
+  if(root.AB) root.AB.forEach(function(c){ setup.b.push(c); });
+  if(root.AW) root.AW.forEach(function(c){ setup.w.push(c); });
+  var moves=[];
+  nodes.forEach(function(nd){
+    var col=null,val=null;
+    if(nd.B!=null){ col='b'; val=nd.B[0]; }
+    else if(nd.W!=null){ col='w'; val=nd.W[0]; }
+    if(col!=null){
+      moves.push({color:col, coord:(val===''||val==null||val==='tt')?null:val, comment:(nd.C&&nd.C[0])||null});
+    }
+  });
+  return {
+    info:{PB:g('PB'),PW:g('PW'),BR:g('BR'),WR:g('WR'),RE:g('RE'),DT:g('DT'),EV:g('EV'),RO:g('RO'),KM:g('KM'),HA:g('HA')},
+    size:size, moves:moves, setup:setup
+  };
+}
+function coordToXY(c){ if(!c||c.length<2) return null; return {x:c.charCodeAt(0)-97, y:c.charCodeAt(1)-97}; }
+
+/* ================= 바둑 로직 (착수/따냄) ================= */
+function emptyBoard(size){ var b=[]; for(var y=0;y<size;y++){ b.push(new Array(size).fill(0)); } return b; }
+function neighbors(x,y,size){
+  var r=[]; if(x>0)r.push([x-1,y]); if(x<size-1)r.push([x+1,y]); if(y>0)r.push([x,y-1]); if(y<size-1)r.push([x,y+1]); return r;
+}
+function groupLiberties(b,x,y,size){
+  var color=b[y][x], stack=[[x,y]], seen={}, group=[], libs=0, libSeen={};
+  seen[x+','+y]=1;
+  while(stack.length){
+    var p=stack.pop(); group.push(p);
+    neighbors(p[0],p[1],size).forEach(function(nb){
+      var v=b[nb[1]][nb[0]];
+      if(v===0){ var k=nb[0]+','+nb[1]; if(!libSeen[k]){libSeen[k]=1;libs++;} }
+      else if(v===color){ var kk=nb[0]+','+nb[1]; if(!seen[kk]){seen[kk]=1;stack.push(nb);} }
+    });
+  }
+  return {group:group, libs:libs};
+}
+function playStone(b,size,color,x,y){ // color 1=black 2=white ; returns captured count
+  b[y][x]=color; var opp=color===1?2:1; var captured=0;
+  neighbors(x,y,size).forEach(function(nb){
+    if(b[nb[1]][nb[0]]===opp){
+      var g=groupLiberties(b,nb[0],nb[1],size);
+      if(g.libs===0){ g.group.forEach(function(p){ b[p[1]][p[0]]=0; captured++; }); }
+    }
+  });
+  return captured;
+}
+// 특정 수까지 반영된 보드 생성
+function boardAt(parsed, idx){
+  var size=parsed.size, b=emptyBoard(size);
+  parsed.setup.b.forEach(function(c){ var p=coordToXY(c); if(p)b[p.y][p.x]=1; });
+  parsed.setup.w.forEach(function(c){ var p=coordToXY(c); if(p)b[p.y][p.x]=2; });
+  var last=null;
+  for(var m=0;m<idx && m<parsed.moves.length;m++){
+    var mv=parsed.moves[m];
+    if(mv.coord){ var p=coordToXY(mv.coord); if(p){ playStone(b,size,mv.color==='b'?1:2,p.x,p.y); last={x:p.x,y:p.y}; } }
+    else last=null; // pass
+  }
+  return {board:b, last:last, size:size};
+}
+
+/* ================= 썸네일 SVG ================= */
+function thumbSVG(parsed){
+  var idx=Math.min(parsed.moves.length, Math.max(40, Math.floor(parsed.moves.length*0.55)));
+  var st=boardAt(parsed, idx);
+  var size=st.size, b=st.board, cell=12, pad=cell/2, W=size*cell, H=size*cell;
+  var svg='<svg class="gc-thumb" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  svg+='<rect width="'+W+'" height="'+H+'" fill="#e8c47a"/>';
+  for(var i=0;i<size;i++){
+    var p=pad+i*cell, e=(i===0||i===size-1)?1.4:0.6;
+    svg+='<line x1="'+p+'" y1="'+pad+'" x2="'+p+'" y2="'+(H-pad)+'" stroke="#5a3d1a" stroke-width="'+e+'"/>';
+    svg+='<line x1="'+pad+'" y1="'+p+'" x2="'+(W-pad)+'" y2="'+p+'" stroke="#5a3d1a" stroke-width="'+e+'"/>';
+  }
+  var r=cell*0.46;
+  for(var y=0;y<size;y++)for(var x=0;x<size;x++){
+    if(b[y][x]){ var cx=pad+x*cell, cy=pad+y*cell;
+      svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+(b[y][x]===1?'#111':'#fafafa')+'" stroke="'+(b[y][x]===1?'#000':'#999')+'" stroke-width="0.5"/>'; }
+  }
+  svg+='</svg>'; return svg;
+}
+
+/* ================= 화면 네비게이션 ================= */
+var stack=['tournaments'];
+var curTournament=null, curGameIdx=null;
+function goScreen(name){
+  ['tournaments','games','board'].forEach(function(n){
+    document.getElementById('screen-'+n).classList.toggle('active', n===name);
+  });
+  document.getElementById('back-btn').classList.toggle('show', name!=='tournaments');
+}
+function goBack(){
+  stopPlay();
+  if(stack.length>1){ stack.pop(); }
+  var name=stack[stack.length-1];
+  if(name==='tournaments'){ setHeader('스마트 기보', totalGamesLabel()); goScreen('tournaments'); }
+  else if(name==='games'){ renderGames(curTournament); }
+}
+function setHeader(title, sub){ document.getElementById('h-title').textContent=title;
+  document.getElementById('h-sub').textContent=sub||''; }
+
+/* ================= 화면 1: 기전 목록 ================= */
+function tourName(key){ return (typeof FOLDER_NAMES_KO!=='undefined' && FOLDER_NAMES_KO[key]) || key; }
+function totalGamesLabel(){
+  var n=0; TOUR_INDEX.forEach(function(t){ n+=t.count; }); return n.toLocaleString()+'국';
+}
+function renderTournaments(){
+  var grid=document.getElementById('tour-grid'); grid.innerHTML='';
+  var countOf={}; TOUR_INDEX.forEach(function(t){ countOf[t.key]=t.count; });
+  var keys=TOUR_INDEX.map(function(t){ return t.key; });
+  // 고전 먼저, 그 다음 이름순
+  keys.sort(function(a,b){
+    var ca=CLASSIC_KEYS.indexOf(a)>=0, cb=CLASSIC_KEYS.indexOf(b)>=0;
+    if(ca!==cb) return ca?-1:1;
+    return tourName(a).localeCompare(tourName(b),'ko');
+  });
+  keys.forEach(function(k){
+    var isClassic=CLASSIC_KEYS.indexOf(k)>=0;
+    var card=document.createElement('div');
+    card.className='tour-card'+(isClassic?' classic':'');
+    var ko=tourName(k), en=(ko!==k)?('<div class="tc-en">'+k+'</div>'):'';
+    var cached=KIBO_DB[k]?'':' <span class="tc-dl" title="탭하면 받아옵니다">⬇</span>';
+    card.innerHTML='<div><div class="tc-name">'+ko+'</div>'+en+'</div>'+
+      '<div class="tc-count">'+(isClassic?'★ ':'')+(countOf[k]||0)+'국'+cached+'</div>';
+    card.onclick=function(){ openTournament(k); };
+    grid.appendChild(card);
+  });
+  setHeader('스마트 기보', totalGamesLabel());
+}
+
+/* 기전 클릭 → 캐시에 없으면 data/<key>.json 을 받아온 뒤 대국 목록 표시 */
+function openTournament(key){
+  if(KIBO_DB[key]){ stack.push('games'); renderGames(key); return; }
+  setHeader(tourName(key), '기보 받는 중…');
+  goScreen('games');
+  var grid=document.getElementById('game-grid');
+  grid.innerHTML='<div class="loading-note">기보를 받아오는 중입니다…</div>';
+  fetch('data/'+encodeURIComponent(key)+'.json')
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(games){
+      KIBO_DB[key]=games;
+      stack.push('games'); renderGames(key);
+    })
+    .catch(function(e){
+      grid.innerHTML='<div class="loading-note err">기보를 받아오지 못했습니다.<br>'+
+        '네트워크 연결을 확인한 뒤 다시 시도해 주세요.<br><small>('+key+' · '+e.message+')</small></div>';
+      setHeader(tourName(key), '받기 실패');
+    });
+}
+
+/* ================= 화면 2: 대국 목록 ================= */
+var _thumbObserver=null;
+function shortResult(re){
+  if(!re) return '';
+  return re.replace('B+','흑 ').replace('W+','백 ')
+    .replace('R','불계').replace('Resign','불계').replace('T','시간승').replace(/Time/i,'시간승').replace(/Void/i,'무효');
+}
+function playerLine(info){
+  var b=info.PB||'?', w=info.PW||'?';
+  var br=info.BR?(' <span class="bi-rank">'+info.BR+'</span>'):'';
+  return '<span class="pb">'+b+'</span><span class="gc-vs">vs</span><span class="pw">'+w+'</span>';
+}
+function renderGames(key){
+  curTournament=key;
+  goScreen('games');
+  setHeader(tourName(key), KIBO_DB[key].length+'국');
+  var grid=document.getElementById('game-grid'); grid.innerHTML='';
+  if(_thumbObserver) _thumbObserver.disconnect();
+  _thumbObserver=new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(!en.isIntersecting) return;
+      var cell=en.target; if(cell.dataset.filled) return; cell.dataset.filled='1';
+      var i=+cell.dataset.idx;
+      try{ var parsed=parseSGF(KIBO_DB[key][i].content);
+        cell.querySelector('.gc-thumb-slot').innerHTML=thumbSVG(parsed); }catch(e){}
+      _thumbObserver.unobserve(cell);
+    });
+  },{root:document.getElementById('screen-games'), rootMargin:'300px'});
+  var frag=document.createDocumentFragment();
+  KIBO_DB[key].forEach(function(game, i){
+    var info;
+    try{ info=parseSGF(game.content).info; }catch(e){ info={}; }
+    var card=document.createElement('div');
+    card.className='game-card'; card.dataset.idx=i;
+    var meta=[info.DT||'', info.RO?('제'+info.RO.replace(/[^0-9]/g,'')+'국').replace('제국',''):''].filter(Boolean).join(' · ');
+    card.innerHTML=
+      '<div class="gc-thumb-slot"><div class="gc-thumb"></div></div>'+
+      '<div class="gc-info">'+
+        '<div class="gc-players">'+playerLine(info)+'</div>'+
+        '<div class="gc-meta"><span class="gc-result">'+shortResult(info.RE)+'</span><span class="gc-num">#'+(i+1)+'</span></div>'+
+        (meta?'<div class="gc-meta"><span>'+meta+'</span></div>':'')+
+      '</div>';
+    card.onclick=function(){ stack.push('board'); openGame(key,i); };
+    frag.appendChild(card);
+    _thumbObserver.observe(card);
+  });
+  grid.appendChild(frag);
+  document.getElementById('screen-games').scrollTop=0;
+}
+
+/* ================= 화면 3: 대국 진행 ================= */
+var curParsed=null, totalMoves=0, curMove=0, canvas=null, ctx=null;
+var placeMode=false; // 놓아보기(자유착수) 모드 — 이 상태가 아닐 때만 화면 터치로 수순 진행
+function openGame(key, i){
+  stopPlay();
+  curParsed=parseSGF(KIBO_DB[key][i].content);
+  totalMoves=curParsed.moves.length; curMove=0;
+  goScreen('board');
+  var info=curParsed.info;
+  setHeader(info.EV||tourName(key), '');
+  document.getElementById('bi-players').innerHTML=
+    '<span class="bi-p"><span class="bi-stone b"></span><span class="bi-name">'+(info.PB||'흑')+'</span>'+(info.BR?'<span class="bi-rank">'+info.BR+'</span>':'')+'</span>'+
+    '<span class="bi-p"><span class="bi-stone w"></span><span class="bi-name">'+(info.PW||'백')+'</span>'+(info.WR?'<span class="bi-rank">'+info.WR+'</span>':'')+'</span>';
+  var ev=[info.EV, info.RO, info.DT, shortResult(info.RE)].filter(Boolean).join(' · ');
+  if(info.KM) ev+=' · 덤 '+info.KM;
+  document.getElementById('bi-event').textContent=ev;
+  var slider=document.getElementById('move-slider');
+  slider.max=totalMoves; slider.value=0;
+  slider.oninput=function(){ gotoMove(+this.value); };
+  canvas=document.getElementById('board-canvas'); ctx=canvas.getContext('2d');
+  requestAnimationFrame(function(){ resizeCanvas(); gotoMove(0); });
+}
+function resizeCanvas(){
+  if(!canvas) return;
+  var wrap=canvas.parentElement;
+  var s=Math.min(wrap.clientWidth, wrap.clientHeight);
+  s=Math.max(s,100);
+  var dpr=window.devicePixelRatio||1;
+  canvas.style.width=s+'px'; canvas.style.height=s+'px';
+  canvas.width=s*dpr; canvas.height=s*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  canvas._px=s;
+}
+function drawBoard(){
+  if(!canvas||!curParsed) return;
+  var size=curParsed.size, S=canvas._px||canvas.width;
+  var pad=S*0.5/size + S*0.012, grid=(S-2*pad)/(size-1), r=grid*0.47;
+  ctx.clearRect(0,0,S,S);
+  ctx.fillStyle='#e8c47a'; ctx.fillRect(0,0,S,S);
+  // 격자
+  ctx.strokeStyle='#5a3d1a'; ctx.lineWidth=1;
+  for(var i=0;i<size;i++){
+    var p=pad+i*grid;
+    ctx.beginPath(); ctx.moveTo(pad,p); ctx.lineTo(S-pad,p); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p,pad); ctx.lineTo(p,S-pad); ctx.stroke();
+  }
+  // 화점
+  var star=(size===19)?[3,9,15]:(size===13?[3,6,9]:[2, size-3]);
+  if(size===19||size===13){
+    ctx.fillStyle='#5a3d1a';
+    star.forEach(function(sx){ star.forEach(function(sy){
+      ctx.beginPath(); ctx.arc(pad+sx*grid,pad+sy*grid,grid*0.09,0,7); ctx.fill();
+    });});
+  }
+  // 돌
+  var st=boardAt(curParsed, curMove), b=st.board;
+  for(var y=0;y<size;y++)for(var x=0;x<size;x++){
+    if(b[y][x]){ drawStone(pad+x*grid, pad+y*grid, r, b[y][x]===1); }
+  }
+  // 마지막 수 표시
+  if(st.last){
+    var cx=pad+st.last.x*grid, cy=pad+st.last.y*grid;
+    var lastColorBlack=b[st.last.y][st.last.x]===1;
+    ctx.strokeStyle=lastColorBlack?'#fff':'#c00'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(cx,cy,r*0.45,0,7); ctx.stroke();
+  }
+  // 코멘트
+  var mv=curMove>0?curParsed.moves[curMove-1]:null;
+  var cb=document.getElementById('comment-bar');
+  if(mv&&mv.comment){ cb.textContent=mv.comment; cb.classList.add('show'); }
+  else cb.classList.remove('show');
+}
+function drawStone(cx,cy,r,black){
+  var g=ctx.createRadialGradient(cx-r*0.35,cy-r*0.35,r*0.1,cx,cy,r);
+  if(black){ g.addColorStop(0,'#555'); g.addColorStop(0.5,'#1a1a1a'); g.addColorStop(1,'#000'); }
+  else { g.addColorStop(0,'#fff'); g.addColorStop(0.6,'#eee'); g.addColorStop(1,'#c8c8c8'); }
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill();
+  if(!black){ ctx.strokeStyle='#999'; ctx.lineWidth=0.6; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.stroke(); }
+}
+function updateMoveNo(){
+  document.getElementById('move-no').textContent=curMove+' / '+totalMoves;
+  document.getElementById('move-slider').value=curMove;
+}
+function gotoMove(n){
+  curMove=Math.max(0,Math.min(totalMoves,n));
+  drawBoard(); updateMoveNo();
+}
+function stepMove(d){ stopPlay(); gotoMove(curMove+d); }
+
+/* 자동재생 */
+var playTimer=null;
+function togglePlay(){ if(playTimer) stopPlay(); else startPlay(); }
+function startPlay(){
+  if(curMove>=totalMoves) gotoMove(0);
+  document.getElementById('play-btn').textContent='⏸';
+  playTimer=setInterval(function(){
+    if(curMove>=totalMoves){ stopPlay(); return; }
+    gotoMove(curMove+1);
+  },700);
+}
+function stopPlay(){ if(playTimer){ clearInterval(playTimer); playTimer=null; }
+  var pb=document.getElementById('play-btn'); if(pb) pb.textContent='▶'; }
+
+function relayoutBoard(){
+  if(document.getElementById('screen-board').classList.contains('active')){ resizeCanvas(); drawBoard(); }
+}
+window.addEventListener('resize', relayoutBoard);
+window.addEventListener('orientationchange', function(){ setTimeout(relayoutBoard, 200); });
+
+/* ================= 바둑판 터치로 수순 진행 ================= */
+(function(){
+  var cv=document.getElementById('board-canvas');
+  function onTap(e){
+    if(placeMode || !curParsed) return;      // 놓아보기 모드면 넘기지 않음
+    var rect=cv.getBoundingClientRect();
+    var cx=(e.changedTouches?e.changedTouches[0].clientX:e.clientX)-rect.left;
+    if(cx < rect.width*0.30) stepMove(-1);    // 왼쪽 30% → 이전 수
+    else stepMove(1);                         // 나머지 → 다음 수
+  }
+  cv.addEventListener('click', onTap);
+})();
+
+/* ================= 시작 ================= */
+(function boot(){
+  var grid=document.getElementById('tour-grid');
+  grid.innerHTML='<div class="loading-note">목록을 불러오는 중…</div>';
+  fetch('index.json')
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(idx){
+      TOUR_INDEX = idx.tournaments || [];
+      TOUR_INDEX.forEach(function(t){ FOLDER_NAMES_KO[t.key]=t.name||t.key; });
+      renderTournaments();
+    })
+    .catch(function(e){
+      grid.innerHTML='<div class="loading-note err">목록을 불러오지 못했습니다.<br>'+
+        '새로고침 해주세요. <small>('+e.message+')</small></div>';
+    });
+})();
+
+/* PWA */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>

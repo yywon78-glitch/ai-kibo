@@ -608,9 +608,7 @@ window.addEventListener('orientationchange', function(){ setTimeout(relayoutBoar
   function onTap(e){
     if(placeMode || !curParsed) return;      // 놓아보기 모드면 넘기지 않음
     var rect=cv.getBoundingClientRect();
-    var cx=(e.changedTouches?e.changedTouches[0].clientX:e.clientX)-rect.left;
-    if(cx < rect.width*0.30) stepMove(-1);    // 왼쪽 30% → 이전 수
-    else stepMove(1);                         // 나머지 → 다음 수
+    stepMove(1);
   }
   cv.addEventListener('click', onTap);
 })();

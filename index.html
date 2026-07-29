@@ -98,7 +98,7 @@ body{
 .bi-name{font-weight:700}.bi-rank{color:#d4a056;font-size:12px}
 .bi-event{text-align:center;font-size:11px;color:rgba(245,230,200,0.55);margin-top:3px}
 .board-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:8px;min-height:0}
-#board-canvas{background:#e8c47a;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.5);
+#board-canvas{background:#d4a830;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.5);
   max-width:100%;max-height:100%}
 .comment-bar{flex-shrink:0;max-height:64px;overflow-y:auto;padding:6px 14px;
   font-size:12px;color:#e8d9b8;background:rgba(0,0,0,0.25);line-height:1.45;display:none}
@@ -496,6 +496,64 @@ function renderGames(key){
 /* ================= 화면 3: 대국 진행 ================= */
 var curParsed=null, totalMoves=0, curMove=0, canvas=null, ctx=null;
 var placeMode=false, placeMoveStart=0, placedStones=[], placeColor=1;
+var _boardTex=null;
+
+function buildBoardTexture(S){
+  if(_boardTex && _boardTex.s===S) return;
+  var tc=document.createElement('canvas'); tc.width=S; tc.height=S;
+  var tx=tc.getContext('2d');
+
+  /* 카야나무 기본색 */
+  var base=tx.createLinearGradient(0,0,S*0.6,S);
+  base.addColorStop(0,  '#f0d060');
+  base.addColorStop(0.2,'#e2bc48');
+  base.addColorStop(0.5,'#d4a830');
+  base.addColorStop(0.8,'#c89820');
+  base.addColorStop(1,  '#d0a030');
+  tx.fillStyle=base; tx.fillRect(0,0,S,S);
+
+  /* 목재 결 — 고정 시드 난수로 매번 동일하게 */
+  var sd=12345;
+  function rnd(){ sd=(sd*1664525+1013904223)&0xffffffff; return (sd>>>0)/4294967295; }
+  tx.save(); tx.globalAlpha=1;
+  var lineCount=Math.floor(S*0.9);
+  for(var i=0;i<lineCount;i++){
+    var fy=i*(S/lineCount);
+    var a=rnd()*0.10+0.02;
+    var isDark=rnd()<0.35;
+    tx.strokeStyle=isDark?('rgba(90,50,0,'+a+')'): ('rgba(240,200,80,'+(a*0.5)+')');
+    tx.lineWidth=rnd()*1.4+0.25;
+    var w1=rnd()*12-6, w2=rnd()*12-6, w3=rnd()*12-6;
+    var sy=Math.sin(fy*0.045)*6, sy2=Math.sin(fy*0.08+0.8)*4;
+    tx.beginPath();
+    tx.moveTo(0, fy+w1);
+    tx.bezierCurveTo(S*0.28, fy+sy+w2, S*0.68, fy+sy2+w3, S, fy+w1*0.6);
+    tx.stroke();
+  }
+  tx.restore();
+
+  /* 광택 오버레이 — 상단 좌측 빛 반사 */
+  var gloss=tx.createRadialGradient(S*0.35,S*0.25,0,S*0.5,S*0.5,S*0.85);
+  gloss.addColorStop(0,'rgba(255,250,200,0.32)');
+  gloss.addColorStop(0.3,'rgba(255,235,140,0.10)');
+  gloss.addColorStop(0.7,'rgba(160,100,10,0.08)');
+  gloss.addColorStop(1,'rgba(80,40,0,0.22)');
+  tx.fillStyle=gloss; tx.fillRect(0,0,S,S);
+
+  /* 테두리 안쪽 어두운 음영 (깊이감) */
+  var edge=tx.createLinearGradient(0,0,S*0.06,0);
+  edge.addColorStop(0,'rgba(60,30,0,0.30)');
+  edge.addColorStop(1,'rgba(60,30,0,0)');
+  tx.fillStyle=edge; tx.fillRect(0,0,S,S);
+  var edgeR=tx.createLinearGradient(S,0,S-S*0.06,0);
+  edgeR.addColorStop(0,'rgba(60,30,0,0.25)'); edgeR.addColorStop(1,'rgba(60,30,0,0)');
+  tx.fillStyle=edgeR; tx.fillRect(0,0,S,S);
+  var edgeB=tx.createLinearGradient(0,S,0,S-S*0.06);
+  edgeB.addColorStop(0,'rgba(60,30,0,0.28)'); edgeB.addColorStop(1,'rgba(60,30,0,0)');
+  tx.fillStyle=edgeB; tx.fillRect(0,0,S,S);
+
+  _boardTex={canvas:tc, s:S};
+}
 function openGame(key, i){
   stopPlay();
   curParsed=parseSGF(KIBO_DB[key][i].content);
@@ -532,19 +590,9 @@ function drawBoard(){
   var pad=S*0.5/size + S*0.012, grid=(S-2*pad)/(size-1), r=grid*0.47;
   ctx.clearRect(0,0,S,S);
 
-  /* ── 판 바탕: 카야나무 목재 느낌 ── */
-  var woodGrad=ctx.createLinearGradient(0,0,S,S);
-  woodGrad.addColorStop(0,  '#e8c86a');
-  woodGrad.addColorStop(0.3,'#dbb95a');
-  woodGrad.addColorStop(0.6,'#e4c268');
-  woodGrad.addColorStop(1,  '#c9a84c');
-  ctx.fillStyle=woodGrad; ctx.fillRect(0,0,S,S);
-
-  /* 판 위 은은한 조명 오버레이 */
-  var lightGrad=ctx.createRadialGradient(S*0.35,S*0.3,0,S*0.5,S*0.5,S*0.75);
-  lightGrad.addColorStop(0,'rgba(255,245,200,0.28)');
-  lightGrad.addColorStop(1,'rgba(100,60,0,0.18)');
-  ctx.fillStyle=lightGrad; ctx.fillRect(0,0,S,S);
+  /* ── 카야나무 텍스처 ── */
+  buildBoardTexture(S);
+  ctx.drawImage(_boardTex.canvas,0,0);
 
   /* 판 테두리 그림자 */
   ctx.shadowColor='rgba(0,0,0,0.55)';

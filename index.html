@@ -531,22 +531,45 @@ function drawBoard(){
   var size=curParsed.size, S=canvas._px||canvas.width;
   var pad=S*0.5/size + S*0.012, grid=(S-2*pad)/(size-1), r=grid*0.47;
   ctx.clearRect(0,0,S,S);
-  ctx.fillStyle='#e8c47a'; ctx.fillRect(0,0,S,S);
-  // 격자
-  ctx.strokeStyle='#5a3d1a'; ctx.lineWidth=1;
+
+  /* ── 판 바탕: 카야나무 목재 느낌 ── */
+  var woodGrad=ctx.createLinearGradient(0,0,S,S);
+  woodGrad.addColorStop(0,  '#e8c86a');
+  woodGrad.addColorStop(0.3,'#dbb95a');
+  woodGrad.addColorStop(0.6,'#e4c268');
+  woodGrad.addColorStop(1,  '#c9a84c');
+  ctx.fillStyle=woodGrad; ctx.fillRect(0,0,S,S);
+
+  /* 판 위 은은한 조명 오버레이 */
+  var lightGrad=ctx.createRadialGradient(S*0.35,S*0.3,0,S*0.5,S*0.5,S*0.75);
+  lightGrad.addColorStop(0,'rgba(255,245,200,0.28)');
+  lightGrad.addColorStop(1,'rgba(100,60,0,0.18)');
+  ctx.fillStyle=lightGrad; ctx.fillRect(0,0,S,S);
+
+  /* 판 테두리 그림자 */
+  ctx.shadowColor='rgba(0,0,0,0.55)';
+  ctx.shadowBlur=S*0.04;
+  ctx.shadowOffsetX=S*0.01; ctx.shadowOffsetY=S*0.015;
+  ctx.strokeStyle='#7a5020'; ctx.lineWidth=S*0.012;
+  ctx.strokeRect(S*0.006,S*0.006,S-S*0.012,S-S*0.012);
+  ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
+
+  /* ── 격자선 ── */
+  ctx.strokeStyle='rgba(60,30,5,0.75)';
   for(var i=0;i<size;i++){
     var p=pad+i*grid;
+    var isEdge=(i===0||i===size-1);
+    ctx.lineWidth=isEdge?1.6:0.8;
     ctx.beginPath(); ctx.moveTo(pad,p); ctx.lineTo(S-pad,p); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(p,pad); ctx.lineTo(p,S-pad); ctx.stroke();
   }
-  // 화점
-  var star=(size===19)?[3,9,15]:(size===13?[3,6,9]:[2, size-3]);
-  if(size===19||size===13){
-    ctx.fillStyle='#5a3d1a';
-    star.forEach(function(sx){ star.forEach(function(sy){
-      ctx.beginPath(); ctx.arc(pad+sx*grid,pad+sy*grid,grid*0.09,0,7); ctx.fill();
-    });});
-  }
+
+  /* ── 화점 ── */
+  var starPts=(size===19)?[3,9,15]:(size===13?[3,6,9]:(size===9?[2,4,6]:[]));
+  ctx.fillStyle='rgba(50,25,0,0.8)';
+  starPts.forEach(function(sx){ starPts.forEach(function(sy){
+    ctx.beginPath(); ctx.arc(pad+sx*grid,pad+sy*grid,grid*0.115,0,7); ctx.fill();
+  });});
   // 돌
   var st=boardAt(curParsed, curMove), b=st.board;
   var placeLastX=-1, placeLastY=-1;
@@ -575,11 +598,47 @@ function drawBoard(){
   else cb.classList.remove('show');
 }
 function drawStone(cx,cy,r,black){
-  var g=ctx.createRadialGradient(cx-r*0.35,cy-r*0.35,r*0.1,cx,cy,r);
-  if(black){ g.addColorStop(0,'#555'); g.addColorStop(0.5,'#1a1a1a'); g.addColorStop(1,'#000'); }
-  else { g.addColorStop(0,'#fff'); g.addColorStop(0.6,'#eee'); g.addColorStop(1,'#c8c8c8'); }
-  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill();
-  if(!black){ ctx.strokeStyle='#999'; ctx.lineWidth=0.6; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.stroke(); }
+  /* 돌 그림자 */
+  ctx.shadowColor='rgba(0,0,0,0.45)';
+  ctx.shadowBlur=r*0.8;
+  ctx.shadowOffsetX=r*0.18; ctx.shadowOffsetY=r*0.22;
+
+  if(black){
+    /* 흑돌: 깊은 검정 + 상단 반사광 */
+    var g=ctx.createRadialGradient(cx-r*0.28,cy-r*0.32,r*0.02,cx+r*0.08,cy+r*0.08,r*1.05);
+    g.addColorStop(0,'#4a4a4a');
+    g.addColorStop(0.2,'#1c1c1c');
+    g.addColorStop(0.6,'#060606');
+    g.addColorStop(1,'#000000');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill();
+    ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
+    /* 반사 하이라이트 */
+    var hl=ctx.createRadialGradient(cx-r*0.3,cy-r*0.35,0,cx-r*0.3,cy-r*0.35,r*0.55);
+    hl.addColorStop(0,'rgba(255,255,255,0.32)');
+    hl.addColorStop(0.5,'rgba(255,255,255,0.08)');
+    hl.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=hl; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill();
+  } else {
+    /* 백돌: 청백 유리 느낌 */
+    var g=ctx.createRadialGradient(cx-r*0.22,cy-r*0.28,r*0.02,cx+r*0.1,cy+r*0.1,r*1.05);
+    g.addColorStop(0,'#ffffff');
+    g.addColorStop(0.25,'#f2f2ef');
+    g.addColorStop(0.6,'#dcdcd6');
+    g.addColorStop(0.85,'#c4c4bc');
+    g.addColorStop(1,'#adadaa');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill();
+    ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
+    /* 테두리 */
+    ctx.strokeStyle='rgba(120,120,110,0.7)'; ctx.lineWidth=0.7;
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.stroke();
+    /* 반사 하이라이트 */
+    var hl=ctx.createRadialGradient(cx-r*0.25,cy-r*0.3,0,cx-r*0.25,cy-r*0.3,r*0.5);
+    hl.addColorStop(0,'rgba(255,255,255,0.9)');
+    hl.addColorStop(0.4,'rgba(255,255,255,0.35)');
+    hl.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=hl; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill();
+  }
+  ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
 }
 function updateMoveNo(){
   document.getElementById('move-no').textContent=curMove+' / '+totalMoves;

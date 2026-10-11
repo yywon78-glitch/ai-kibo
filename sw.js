@@ -1,63 +1,17 @@
-﻿/* ?ㅻ쭏??湲곕낫蹂닿린 ????罹먯떆 + 湲곕낫 ?고???罹먯떆 */
-const SHELL_CACHE = 'kibo-shell-v4';
-const DATA_CACHE  = 'kibo-data-v1';
-const SHELL = ['./', 'index.html', 'manifest.json', 'index.json',
-               'icon-192.png', 'icon-512.png'];
-
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(SHELL_CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())
-  );
-});
-
+/* 스마트 기보 앱 서비스워커 — 온라인 전용(광고 모델)
+   · 앱 파일(자기 출처)은 항상 네트워크에서 최신으로 받음(HTTP 캐시 우회) → 업데이트 즉시 반영
+   · 캐시/오프라인 없음 → 인터넷 없으면 열리지 않음(온라인 전제)
+   · 광고 등 외부(교차 출처) 요청은 간섭하지 않고 그대로 통과 */
+self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys
-        .filter((k) => k !== SHELL_CACHE && k !== DATA_CACHE)
-        .map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))   // 과거 캐시 전부 정리
+      .then(() => self.clients.claim())
   );
 });
-
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
-  const req = e.request;
-  const url = new URL(req.url);
-
-  // 湲곕낫 ?곗씠?? ??踰?諛쏆쑝硫?罹먯떆 ?곗꽑(?ㅽ봽?쇱씤 ?대엺 媛??
-  if (url.pathname.includes('/data/') && url.pathname.endsWith('.json')) {
-    e.respondWith(
-      caches.open(DATA_CACHE).then((c) =>
-        c.match(req).then((hit) => hit || fetch(req).then((res) => {
-          if (res && res.status === 200) c.put(req, res.clone());
-          return res;
-        }))
-      )
-    );
-    return;
-  }
-
-  // 紐⑸줉/臾몄꽌: ?ㅽ듃?뚰겕 ?곗꽑, ?ㅽ뙣 ??罹먯떆(?? ?대갚
-  const isHTML = req.mode === 'navigate' || req.destination === 'document'
-    || url.pathname.endsWith('/') || url.pathname.endsWith('.html')
-    || url.pathname.endsWith('index.json');
-  if (isHTML) {
-    e.respondWith(
-      fetch(req).then((res) => {
-        if (res && res.status === 200) {
-          const copy = res.clone();
-          caches.open(SHELL_CACHE).then((c) => c.put(req, copy));
-        }
-        return res;
-      }).catch(() => caches.match(req).then((r) => r || caches.match('index.html')))
-    );
-    return;
-  }
-
-  // 洹????꾩씠肄???: 罹먯떆 ?곗꽑
-  e.respondWith(
-    caches.match(req).then((hit) => hit || fetch(req))
-  );
+  const url = new URL(e.request.url);
+  if (url.origin !== location.origin) return;              // 광고/외부 요청 → 그대로 통과
+  e.respondWith(fetch(e.request, { cache: 'no-store' }));   // 앱 파일 → 항상 네트워크 최신, 캐시 안 함
 });
-
